@@ -3,7 +3,7 @@ const axios = require("axios");
 require("dotenv").config();
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000; // Bind to the port Render sets
 
 app.use(express.json());
 app.use(require("cors")());
@@ -29,7 +29,7 @@ app.post("/api/generate-video", async (req, res) => {
         type: "text",
         input: script,
       },
-      presenter_id: "amy-jcw5n8l1z", // Or use a valid one from D-ID docs
+      presenter_id: "amy-jcw5n8l1z",
     },
   };
 
@@ -38,7 +38,6 @@ app.post("/api/generate-video", async (req, res) => {
     const videoId = response.data.id;
     console.log("Video generated:", response.data);
 
-    // Poll until video is ready
     let videoUrl = "";
     let status = "created";
 
