@@ -1,19 +1,23 @@
 const express = require("express");
 const axios = require("axios");
 require("dotenv").config();
+const cors = require("cors");
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Bind to the port Render sets
 
+// Use environment PORT from Render, fallback to 5000 locally
+const PORT = process.env.PORT || 5000;
+
+// Middleware
 app.use(express.json());
-app.use(require("cors")());
+app.use(cors());
 
-// Sample route
+// Root route for Render health check
 app.get("/", (req, res) => {
-  res.send("VisionVids API is running successfully...");
+  res.send("VisionVids backend is live!");
 });
 
-// D-ID video route
+// D-ID video generation route
 app.post("/api/generate-video", async (req, res) => {
   const { script } = req.body;
 
@@ -36,29 +40,30 @@ app.post("/api/generate-video", async (req, res) => {
   try {
     const response = await axios.request(options);
     const videoId = response.data.id;
-    console.log("Video generated:", response.data);
 
+    // Poll until video is ready
     let videoUrl = "";
     let status = "created";
 
     while (status !== "done") {
       await new Promise((r) => setTimeout(r, 3000));
-      const statusCheck = await axios.get(`https://api.d-id.com/talks/${videoId}`, {
+      const check = await axios.get(`https://api.d-id.com/talks/${videoId}`, {
         headers: {
           Authorization: `Basic ${process.env.DID_API_KEY}`,
         },
       });
-      status = statusCheck.data.status;
-      videoUrl = statusCheck.data.result_url;
+      status = check.data.status;
+      videoUrl = check.data.result_url;
     }
 
     res.json({ videoUrl });
   } catch (error) {
-    console.error("Video generation error:", error?.response?.data || error.message);
+    console.error("Error generating video:", error?.response?.data || error.message);
     res.status(500).json({ error: "Failed to generate video" });
   }
 });
 
-app.listen(PORT, () => {
+// Start server
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
