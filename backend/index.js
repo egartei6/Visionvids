@@ -12,16 +12,16 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cors());
 
-// Root route for testing Render port
+// Health check route for Render
 app.get("/", (req, res) => {
-  res.send("✅ VisionVids backend is running!");
+  res.send("✅ VisionVids backend is running on Render!");
 });
 
-// D-ID video generation route
+// Video generation endpoint
 app.post("/api/generate-video", async (req, res) => {
   const { script } = req.body;
 
-  const options = {
+  const config = {
     method: "POST",
     url: "https://api.d-id.com/talks",
     headers: {
@@ -33,40 +33,38 @@ app.post("/api/generate-video", async (req, res) => {
         type: "text",
         input: script,
       },
-      presenter_id: "amy-jcw5n8l1z", // Update this if needed
+      presenter_id: "amy-jcw5n8l1z", // Replace if using another presenter
     },
   };
 
   try {
-    const response = await axios.request(options);
+    const response = await axios(config);
     const videoId = response.data.id;
-    console.log("🟢 Video created:", videoId);
+    console.log("🎥 Video requested:", videoId);
 
-    // Poll until video is done
-    let status = "created";
+    // Polling logic to wait until video is ready
     let videoUrl = "";
+    let status = "created";
 
     while (status !== "done") {
-      await new Promise((r) => setTimeout(r, 3000));
-
-      const poll = await axios.get(`https://api.d-id.com/talks/${videoId}`, {
+      await new Promise((res) => setTimeout(res, 3000));
+      const statusRes = await axios.get(`https://api.d-id.com/talks/${videoId}`, {
         headers: {
           Authorization: `Basic ${process.env.DID_API_KEY}`,
         },
       });
-
-      status = poll.data.status;
-      videoUrl = poll.data.result_url;
+      status = statusRes.data.status;
+      videoUrl = statusRes.data.result_url;
     }
 
     res.json({ videoUrl });
   } catch (error) {
-    console.error("❌ Video generation error:", error?.response?.data || error.message);
-    res.status(500).json({ error: "Video generation failed." });
+    console.error("❌ Failed to generate video:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Video generation failed. Please try again." });
   }
 });
 
-// ✅ Start server
-app.listen(PORT, () => {
-  console.log(`✅ Server listening on port ${PORT}`);
+// ✅ Start server and bind to all network interfaces for Render
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server is listening on port ${PORT}`);
 });
